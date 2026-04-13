@@ -1,109 +1,88 @@
-"""CLI entry points for envault using Click."""
+"""Main CLI entry-point for envault."""
 
-import sys
+from __future__ import annotations
+
 from pathlib import Path
 
 import click
 
-from envault.vault import (
-    add_entry,
-    get_entry,
-    init_vault,
-    list_entries,
-    load_vault,
-    save_vault,
-    DEFAULT_VAULT_FILE,
-)
-
-VAULT_OPTION = click.option(
-    "--vault",
-    default=DEFAULT_VAULT_FILE,
-    show_default=True,
-    help="Path to the vault file.",
-)
+from envault.vault import init_vault, add_entry, get_entry, list_entries
+from envault.cli_share import cmd_export, cmd_import
+from envault.cli_history import cmd_log, cmd_clear_log
+from envault.cli_audit import cmd_audit, cmd_clear_audit
+from envault.cli_tags import cmd_tags
+from envault.cli_rotation import cmd_rotate
 
 
 @click.group()
-def cli():
-    """envault — encrypt and version your .env files."""
+def cli() -> None:
+    """envault — encrypted .env vault with team-sharing support."""
 
 
 @cli.command("init")
-@VAULT_OPTION
-def cmd_init(vault):
-    """Initialise a new empty vault."""
+@click.option("--vault", default=".envault", show_default=True)
+def cmd_init(vault: str) -> None:
+    """Initialise a new vault."""
     vault_path = Path(vault)
     if vault_path.exists():
-        click.echo(f"Vault already exists at {vault_path}", err=True)
-        sys.exit(1)
-    v = init_vault(vault_path)
-    save_vault(v, vault_path)
-    click.echo(f"Initialised new vault at {vault_path}")
+        raise click.ClickException(f"Vault already exists: {vault}")
+    init_vault(vault_path)
+    click.echo(f"Vault initialised at {vault_path}.")
 
 
 @cli.command("add")
-@click.argument("env_file", type=click.Path(exists=True))
-@click.option("--label", default="", help="Optional label for this version.")
-@VAULT_OPTION
-def cmd_add(env_file, label, vault):
-    """Encrypt ENV_FILE and add it as a new vault entry."""
+@click.argument("label")
+@click.argument("value")
+@click.option("--vault", default=".envault", show_default=True)
+@click.option("--password", prompt=True, hide_input=True)
+def cmd_add(label: str, value: str, vault: str, password: str) -> None:
+    """Add or update a secret."""
     vault_path = Path(vault)
-    password = click.prompt("Password", hide_input=True)
-    try:
-        v = load_vault(vault_path)
-    except FileNotFoundError:
-        click.echo(f"Vault not found at {vault_path}. Run `envault init` first.", err=True)
-        sys.exit(1)
-    content = Path(env_file).read_text()
-    entry = add_entry(v, password, content, label=label or None)
-    save_vault(v, vault_path)
-    click.echo(f"Added entry #{entry['index']} to vault.")
+    if not vault_path.exists():
+        raise click.ClickException(f"Vault not found: {vault}")
+    add_entry(vault_path, label, value, password)
+    click.echo(f"Stored '{label}'.")
 
 
 @cli.command("get")
-@click.option("--index", default=-1, show_default=True, help="Entry index (default: latest).")
-@click.option("--output", "-o", default=None, help="Write decrypted content to this file.")
-@VAULT_OPTION
-def cmd_get(index, output, vault):
-    """Decrypt and print (or save) a vault entry."""
+@click.argument("label")
+@click.option("--vault", default=".envault", show_default=True)
+@click.option("--password", prompt=True, hide_input=True)
+def cmd_get(label: str, vault: str, password: str) -> None:
+    """Retrieve a secret by label."""
     vault_path = Path(vault)
-    password = click.prompt("Password", hide_input=True)
+    if not vault_path.exists():
+        raise click.ClickException(f"Vault not found: {vault}")
     try:
-        v = load_vault(vault_path)
-        content = get_entry(v, password, index=index)
-    except FileNotFoundError as exc:
-        click.echo(str(exc), err=True)
-        sys.exit(1)
-    except Exception as exc:  # noqa: BLE001
-        click.echo(f"Failed to decrypt: {exc}", err=True)
-        sys.exit(1)
-    if output:
-        Path(output).write_text(content)
-        click.echo(f"Decrypted content written to {output}")
-    else:
-        click.echo(content, nl=False)
+        value = get_entry(vault_path, label, password)
+        click.echo(value)
+    except KeyError:
+        raise click.ClickException(f"Label '{label}' not found.")
+    except ValueError as exc:
+        raise click.ClickException(str(exc))
 
 
 @cli.command("list")
-@VAULT_OPTION
-def cmd_list(vault):
-    """List all entries in the vault."""
+@click.option("--vault", default=".envault", show_default=True)
+def cmd_list(vault: str) -> None:
+    """List all entry labels."""
     vault_path = Path(vault)
-    try:
-        v = load_vault(vault_path)
-    except FileNotFoundError as exc:
-        click.echo(str(exc), err=True)
-        sys.exit(1)
-    entries = list_entries(v)
-    if not entries:
-        click.echo("No entries found.")
-        return
-    for e in entries:
-        import datetime
-        ts = datetime.datetime.fromtimestamp(e["timestamp"]).strftime("%Y-%m-%d %H:%M:%S")
-        label = f"  [{e['label']}]" if e["label"] else ""
-        click.echo(f"  #{e['index']}  {ts}{label}")
+    if not vault_path.exists():
+        raise click.ClickException(f"Vault not found: {vault}")
+    labels = list_entries(vault_path)
+    if not labels:
+        click.echo("No entries.")
+    else:
+        for label in labels:
+            click.echo(label)
 
 
-if __name__ == "__main__":
-    cli()
+# Register sub-command groups
+cli.add_command(cmd_export, "export")
+cli.add_command(cmd_import, "import")
+cli.add_command(cmd_log, "log")
+cli.add_command(cmd_clear_log, "clear-log")
+cli.add_command(cmd_audit, "audit")
+cli.add_command(cmd_clear_audit, "clear-audit")
+cli.add_command(cmd_tags, "tags")
+cli.add_command(cmd_rotate, "rotate")
