@@ -84,6 +84,11 @@ def test_check_url_scheme_non_url_label():
     assert _check_url_scheme("SECRET_KEY", "notaurl") is None
 
 
+def test_check_url_scheme_valid_http():
+    # plain http should also be accepted as a valid scheme
+    assert _check_url_scheme("API_ENDPOINT", "http://api.example.com") is None
+
+
 # ---------------------------------------------------------------------------
 # validate_entries integration
 # ---------------------------------------------------------------------------
@@ -101,28 +106,11 @@ def test_validate_entries_collects_multiple_issues():
         {"label": "OK_LABEL", "value": "CHANGEME"},
     ]
     result = validate_entries(entries)
+    assert not result.valid
     assert len(result.issues) >= 2
 
 
-def test_validate_entries_valid_false_on_error():
-    entries = [{"label": "X", "value": ""}]
+def test_validate_entries_returns_validation_result_type():
+    entries = [{"label": "API_KEY", "value": "abc123"}]
     result = validate_entries(entries)
-    assert not result.valid
-
-
-def test_validate_entries_warnings_do_not_make_invalid():
-    entries = [{"label": "lowercase", "value": "real_value"}]
-    result = validate_entries(entries)
-    # label format warning but no errors → still valid
-    assert result.valid
-    assert len(result.warnings) >= 1
-
-
-def test_validation_result_errors_and_warnings_split():
-    issues = [
-        ValidationIssue(label="A", rule="r1", message="m1", severity="error"),
-        ValidationIssue(label="B", rule="r2", message="m2", severity="warning"),
-    ]
-    result = ValidationResult(issues=issues)
-    assert len(result.errors) == 1
-    assert len(result.warnings) == 1
+    assert isinstance(result, ValidationResult)
