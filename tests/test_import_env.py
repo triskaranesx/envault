@@ -57,6 +57,12 @@ def test_parse_env_file_ignores_comments(env_file: Path) -> None:
     assert all(not k.startswith("#") for k in keys)
 
 
+def test_parse_env_file_returns_all_entries(env_file: Path) -> None:
+    """Ensure parse_env_file returns exactly the expected number of entries."""
+    pairs = parse_env_file(env_file)
+    assert len(pairs) == 5
+
+
 def test_import_env_file_imports_all(env_file: Path, tmp_path: Path) -> None:
     vault = tmp_path / "vault.json"
     result = import_env_file(vault, env_file, "pw")
@@ -91,3 +97,11 @@ def test_import_creates_vault_if_missing(env_file: Path, tmp_path: Path) -> None
     assert not vault.exists()
     import_env_file(vault, env_file, "pw")
     assert vault.exists()
+
+
+def test_import_env_file_result_keys_present(env_file: Path, tmp_path: Path) -> None:
+    """Ensure the result dict from import_env_file always contains expected keys."""
+    vault = tmp_path / "vault.json"
+    result = import_env_file(vault, env_file, "pw")
+    assert "imported" in result
+    assert "skipped" in result
