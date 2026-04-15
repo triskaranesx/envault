@@ -72,3 +72,12 @@ def test_profile_list_shows_names(runner, vault_dir):
     assert result.exit_code == 0
     assert "prod" in result.output
     assert "dev" in result.output
+
+
+def test_profile_show_after_delete_fails(runner, vault_dir):
+    """Ensure a deleted profile can no longer be retrieved."""
+    runner.invoke(cmd_profile, ["save", "temp", "TMP_KEY", "--vault-dir", vault_dir])
+    runner.invoke(cmd_profile, ["delete", "temp", "--vault-dir", vault_dir])
+    result = runner.invoke(cmd_profile, ["show", "temp", "--vault-dir", vault_dir])
+    assert result.exit_code != 0
+    assert "not found" in result.output
