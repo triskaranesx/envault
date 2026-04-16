@@ -32,6 +32,14 @@ def test_save_template_empty_labels_raises(vault_dir):
         save_template(vault_dir, "empty", [])
 
 
+def test_save_template_overwrites_existing(vault_dir):
+    """Saving a template with the same name should replace the old labels."""
+    save_template(vault_dir, "overwrite", ["OLD_KEY"])
+    save_template(vault_dir, "overwrite", ["NEW_KEY1", "NEW_KEY2"])
+    labels = get_template(vault_dir, "overwrite")
+    assert labels == ["NEW_KEY1", "NEW_KEY2"]
+
+
 def test_delete_template_returns_true(vault_dir):
     save_template(vault_dir, "to_delete", ["FOO"])
     result = delete_template(vault_dir, "to_delete")
