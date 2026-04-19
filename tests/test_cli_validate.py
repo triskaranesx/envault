@@ -61,6 +61,16 @@ def test_validate_run_label_filter(runner, vault_dir):
     assert "passed" in result.output
 
 
+def test_validate_run_label_filter_nonexistent(runner, vault_dir):
+    """Filtering by a label that doesn't exist should report no entries validated."""
+    result = runner.invoke(
+        cmd_validate,
+        ["run", "--vault", vault_dir, "--password", "secret", "--label", "NONEXISTENT"],
+    )
+    assert result.exit_code == 0
+    assert "no entries" in result.output.lower() or "0" in result.output
+
+
 def test_validate_run_strict_flag_exits_nonzero_on_warnings(runner, vault_dir):
     # Add a label with a warning-inducing name (lowercase)
     add_entry(vault_dir, "secret", "lowercase_label", "value")
