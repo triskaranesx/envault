@@ -40,6 +40,12 @@ def test_add_bookmark_empty_label_raises(vault_dir):
         add_bookmark(vault_dir, "")
 
 
+def test_add_bookmark_whitespace_label_raises(vault_dir):
+    """Labels that are only whitespace should be rejected like empty labels."""
+    with pytest.raises(ValueError):
+        add_bookmark(vault_dir, "   ")
+
+
 def test_get_bookmark_returns_none_when_absent(vault_dir):
     assert get_bookmark(vault_dir, "MISSING") is None
 
@@ -68,3 +74,13 @@ def test_multiple_bookmarks_stored_independently(vault_dir):
     add_bookmark(vault_dir, "B", note="second")
     assert get_bookmark(vault_dir, "A")["note"] == "first"
     assert get_bookmark(vault_dir, "B")["note"] == "second"
+
+
+def test_remove_bookmark_then_re_add(vault_dir):
+    """Removing a bookmark and re-adding it should work cleanly."""
+    add_bookmark(vault_dir, "REUSE", note="original")
+    remove_bookmark(vault_dir, "REUSE")
+    add_bookmark(vault_dir, "REUSE", note="fresh")
+    bm = get_bookmark(vault_dir, "REUSE")
+    assert bm is not None
+    assert bm["note"] == "fresh"
