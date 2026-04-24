@@ -15,7 +15,11 @@ from envault.rotation import rotate_password, rotate_entry
 @click.password_option("--old-password", prompt="Old password", confirmation_prompt=False)
 @click.password_option("--new-password", prompt="New password")
 def cmd_rotate(vault: str, label: str | None, old_password: str, new_password: str) -> None:
-    """Re-encrypt vault entries with a new password."""
+    """Re-encrypt vault entries with a new password.
+
+    When --label is provided, only that entry is re-encrypted.  Otherwise every
+    entry in the vault is rotated to the new password in a single pass.
+    """
     vault_path = Path(vault)
 
     if not vault_path.exists():
@@ -33,6 +37,6 @@ def cmd_rotate(vault: str, label: str | None, old_password: str, new_password: s
                 raise click.ClickException(f"Entry '{label}' not found.")
         else:
             count = rotate_password(vault_path, old_password, new_password)
-            click.echo(f"Rotated {count} entries.")
+            click.echo(f"Rotated {count} {'entry' if count == 1 else 'entries'}.")
     except ValueError as exc:
         raise click.ClickException(f"Rotation failed: {exc}") from exc
