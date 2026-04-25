@@ -5,6 +5,16 @@ import click
 from envault.search import search_entries
 
 
+def _format_entry(entry: dict) -> str:
+    """Format a single search result entry for display."""
+    tags_str = ", ".join(entry["tags"]) if entry["tags"] else "(none)"
+    return (
+        f"  [{entry['index']}] {entry['label']}\n"
+        f"       value : {entry['value']}\n"
+        f"       tags  : {tags_str}"
+    )
+
+
 @click.command("search")
 @click.option("--label", "-l", default=None, help="Wildcard pattern for label (e.g. DB_*).")
 @click.option("--tag", "-t", default=None, help="Filter by exact tag name.")
@@ -35,9 +45,4 @@ def cmd_search(label, tag, value, vault_dir, password):
 
     click.echo(f"Found {len(results)} entry/entries:\n")
     for entry in results:
-        tags_str = ", ".join(entry["tags"]) if entry["tags"] else "(none)"
-        click.echo(
-            f"  [{entry['index']}] {entry['label']}\n"
-            f"       value : {entry['value']}\n"
-            f"       tags  : {tags_str}"
-        )
+        click.echo(_format_entry(entry))
